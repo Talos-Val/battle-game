@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DUEL — Online 1v1</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600&display=swap');
+
+:root {
+  --bg: #0a0a0f; --surface: #13131a; --border: #2a2a3a;
+  --accent: #e63946; --accent2: #457b9d; --text: #f1faee;
+  --muted: #6b7280; --success: #2d9e5c; --warn: #e0a020;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Barlow', sans-serif; min-height: 100vh; }
+
+.screen { display: none; min-height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 1.5rem; gap: 1.2rem; }
+.screen.active { display: flex; }
+
+.logo { font-family: 'Bebas Neue', sans-serif; font-size: clamp(3.5rem, 13vw, 7rem); letter-spacing: 8px; line-height: 1; text-align: center; }
+.logo span { color: var(--accent); }
+.tagline { color: var(--muted); font-size: 0.82rem; letter-spacing: 3px; text-transform: uppercase; text-align: center; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.4rem; width: 100%; max-width: 440px; }
+.card h2 { font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem; letter-spacing: 2px; color: var(--muted); margin-bottom: 0.9rem; }
+
+input[type="text"] {
+  width: 100%; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text); font-family: 'Barlow', sans-serif;
+  font-size: 1rem; padding: 0.65rem 1rem; outline: none; transition: border-color .2s; margin-bottom: 0.55rem;
+}
+input:focus { border-color: var(--accent2); }
+
+button {
+  font-family: 'Bebas Neue', sans-serif; letter-spacing: 2px; font-size: 1rem;
+  border: none; border-radius: 8px; padding: 0.65rem 1.1rem; cursor: pointer;
+  transition: transform .1s, opacity .2s; width: 100%; margin-top: 0.35rem;
+}
+button:active { transform: scale(0.97); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-online { background: var(--accent2); color: #fff; }
+.btn-secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover:not(:disabled) { border-color: var(--accent2); }
+
+.status { font-size: 0.8rem; color: var(--muted); margin-top: 0.4rem; min-height: 1.1rem; text-align: center; }
+.status.ok { color: var(--success); }
+.status.err { color: var(--accent); }
+.status.info { color: var(--accent2); }
+
+.divider { text-align: center; color: var(--muted); font-size: 0.72rem; letter-spacing: 2px; margin: 0.7rem 0; }
+
+/* Mode tabs */
+.mode-tabs { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 1rem; }
+.mode-tab { flex: 1; padding: 0.55rem; font-family: 'Bebas Neue', sans-serif; letter-spacing: 1px; font-size: 0.9rem; background: transparent; color: var(--muted); border: none; cursor: pointer; transition: background .2s, color .2s; margin: 0; border-radius: 0; }
+.mode-tab.active { background: var(--border); color: var(--text); }
+
+.mode-panel { display: none; }
+.mode-panel.active { display: block; }
+
+.code-box {
+  font-family: 'Bebas Neue', monospace; font-size: 1.8rem; letter-spacing: 8px;
+  text-align: center; background: var(--bg); border: 1px dashed var(--accent2);
+  border-radius: 8px; padding: 0.55rem; color: var(--accent2);
+  cursor: pointer; user-select: all; margin: 0.4rem 0;
+}
+
+.peer-id-box {
+  font-family: monospace; font-size: 0.72rem; letter-spacing: 1px;
+  text-align: center; background: var(--bg); border: 1px dashed var(--accent2);
+  border-radius: 8px; padding: 0.5rem 0.6rem; color: var(--accent2);
+  cursor: pointer; user-select: all; margin: 0.4rem 0; word-break: break-all;
+  line-height: 1.4;
+}
+
+.info-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.85rem; font-size: 0.75rem; color: var(--muted); line-height: 1.55; margin-top: 0.5rem; }
+.info-box b { color: var(--text); }
+
+/* GAME */
+#screen-game { justify-content: flex-start; padding: 0.75rem; gap: 0.55rem; }
+
+.game-header { width: 100%; max-width: 680px; display: flex; align-items: center; gap: 0.75rem; }
+.pinfo { flex: 1; }
+.pname { font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem; letter-spacing: 1px; }
+.hpbg { height: 9px; background: var(--border); border-radius: 99px; margin-top: 3px; overflow: hidden; }
+.hpfill { height: 100%; border-radius: 99px; transition: width .5s, background .5s; }
+.hpnum { font-size: 0.73rem; color: var(--muted); margin-top: 2px; }
+.vs { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; color: var(--accent); flex-shrink: 0; }
+
+.round-label { font-family: 'Bebas Neue', sans-serif; letter-spacing: 2px; color: var(--muted); font-size: 0.88rem; text-align: center; width: 100%; max-width: 680px; }
+
+.timerwrap { width: 100%; max-width: 680px; height: 5px; background: var(--border); border-radius: 99px; overflow: hidden; }
+.timerbar { height: 100%; background: var(--accent2); border-radius: 99px; transition: width 1s linear; }
+
+.planner { width: 100%; max-width: 680px; display: flex; flex-direction: column; gap: 0.5rem; }
+.plabel { font-family: 'Bebas Neue', sans-serif; letter-spacing: 2px; color: var(--muted); font-size: 0.83rem; }
+
+.slots { display: flex; gap: 0.4rem; }
+.slot { flex: 1; min-height: 65px; border: 2px dashed var(--border); border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 0.75rem; color: var(--muted); position: relative; cursor: default; transition: border-color .2s; }
+.slot.filled { border-style: solid; border-color: var(--accent2); }
+.slot .snum { position: absolute; top: 3px; left: 7px; font-family: 'Bebas Neue', sans-serif; font-size: 0.85rem; color: var(--muted); }
+.slot .sicon { font-size: 1.3rem; }
+.slot .sname { font-weight: 600; color: var(--text); font-size: 0.8rem; }
+.slot .sremove { position: absolute; top: 3px; right: 6px; background: none; border: none; color: var(--muted); font-size: 0.95rem; cursor: pointer; width: auto; padding: 0; line-height: 1; margin: 0; }
+.slot .sremove:hover { color: var(--accent); }
+
+.apicker { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+.abtn { background: var(--surface); border: 1px solid var(--border); border-radius: 9px; color: var(--text); padding: 0.5rem 0.6rem; display: flex; align-items: center; gap: 0.4rem; text-align: left; width: 100%; font-size: 0.8rem; cursor: pointer; transition: border-color .15s, background .15s; }
+.abtn:hover:not(:disabled) { border-color: var(--accent2); background: #1a1a2a; }
+.abtn:disabled { opacity: 0.3; }
+.abtn .ai { font-size: 1.2rem; flex-shrink: 0; }
+.abtn .atitle { font-weight: 600; font-size: 0.8rem; }
+.abtn .adesc { font-size: 0.68rem; color: var(--muted); }
+.abtn .cdbadge { margin-left: auto; font-size: 0.65rem; background: var(--accent); color: #fff; border-radius: 99px; padding: 1px 5px; flex-shrink: 0; }
+
+.readybtn { background: var(--accent); color: #fff; font-size: 1.2rem; padding: 0.8rem; border-radius: 10px; }
+
+.combat-log { width: 100%; max-width: 680px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem 0.9rem; font-size: 0.78rem; max-height: 110px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
+.le { color: var(--muted); }
+.le.dmg { color: #ff6b6b; }
+.le.blk { color: var(--accent2); }
+.le.spc { color: var(--warn); }
+.le.sys { color: var(--success); font-style: italic; }
+
+#screen-result { gap: 1.5rem; text-align: center; }
+.rtitle { font-family: 'Bebas Neue', sans-serif; font-size: clamp(3rem, 12vw, 6rem); letter-spacing: 4px; }
+.rtitle.win { color: var(--success); }
+.rtitle.lose { color: var(--accent); }
+.rsub { color: var(--muted); letter-spacing: 2px; text-transform: uppercase; font-size: 0.85rem; }
+
+.overlay { display: none; position: fixed; inset: 0; background: rgba(10,10,15,0.93); z-index: 100; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; letter-spacing: 3px; color: var(--muted); text-align: center; padding: 2rem; }
+.overlay.active { display: flex; }
+.spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; flex-shrink: 0; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.phase-overlay { display: none; position: fixed; inset: 0; background: rgba(10,10,15,0.88); z-index: 90; flex-direction: column; align-items: center; justify-content: center; }
+.phase-overlay.active { display: flex; }
+.phase-text { font-family: 'Bebas Neue', sans-serif; font-size: clamp(2.5rem, 10vw, 5rem); letter-spacing: 6px; animation: pop .3s ease; }
+@keyframes pop { from{opacity:0;transform:scale(0.75)} to{opacity:1;transform:scale(1)} }
+
+@media(max-width:480px){ .apicker{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<!-- SETUP -->
+<div id="screen-setup" class="screen active">
+  <div class="logo">DU<span>E</span>L</div>
+  <div class="tagline">1v1 Rundenbasiertes Kampfspiel</div>
+  <div style="margin-bottom:16px;">
+    <a href="https://talos-val.github.io/database" target="_self" style="font-family:monospace;font-size:10px;letter-spacing:0.2em;color:var(--accent2);border:1px solid var(--accent2);padding:5px 14px;text-decoration:none;border-radius:4px;opacity:0.85;transition:opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">🗂 DATABASE</a>
+  </div>
+
+  <div class="card">
+    <h2>SPIELER SETUP</h2>
+    <input type="text" id="inp-name" placeholder="Dein Ingame-Name..." maxlength="16">
+
+    <!-- Mode Tabs -->
+    <div class="mode-tabs">
+      <button class="mode-tab active" onclick="switchMode('local')">💻 GLEICHES GERÄT</button>
+      <button class="mode-tab" onclick="switchMode('online')">🌐 ONLINE (PEER)</button>
+    </div>
+
+    <!-- LOCAL MODE -->
+    <div class="mode-panel active" id="panel-local">
+      <div class="divider">— RAUM ERSTELLEN —</div>
+      <button class="btn-primary" onclick="localHost()" id="local-host-btn">⚔️ RAUM ERSTELLEN</button>
+      <div id="local-host-section" style="display:none">
+        <div style="font-size:0.75rem;color:var(--muted);text-align:center;margin-top:0.6rem">Code für den anderen Tab / das andere Fenster:</div>
+        <div class="code-box" id="local-code-box" onclick="copyLocalCode()">-----</div>
+        <div class="status ok" id="local-host-status">⏳ Warte auf Gegner...</div>
+      </div>
+
+      <div class="divider">— BEITRETEN —</div>
+      <input type="text" id="local-inp-code" placeholder="CODE EINGEBEN..." maxlength="5"
+        style="text-transform:uppercase;letter-spacing:6px;text-align:center;font-family:'Bebas Neue',monospace;font-size:1.3rem">
+      <button class="btn-secondary" onclick="localJoin()">🔗 BEITRETEN</button>
+      <div class="status" id="local-join-status"></div>
+
+      <div class="info-box">
+        <b>💡 Gleiches Gerät:</b> Beide Spieler öffnen diese HTML-Datei im selben Browser — als zwei verschiedene Tabs oder Fenster.
+      </div>
+    </div>
+
+    <!-- ONLINE MODE -->
+    <div class="mode-panel" id="panel-online">
+      <div class="divider">— RAUM ERSTELLEN —</div>
+      <button class="btn-online" onclick="peerHost()" id="peer-host-btn">🌐 ONLINE RAUM ERSTELLEN</button>
+      <div id="peer-host-section" style="display:none">
+        <div style="font-size:0.75rem;color:var(--muted);text-align:center;margin-top:0.6rem">Deine Peer-ID — teile sie mit deinem Gegner:</div>
+        <div class="peer-id-box" id="peer-id-box" onclick="copyPeerId()">Verbinde...</div>
+        <div class="status" id="peer-host-status">⏳ Verbinde mit Netzwerk...</div>
+      </div>
+
+      <div class="divider">— BEITRETEN —</div>
+      <input type="text" id="peer-inp-id" placeholder="Peer-ID des Gegners eingeben...">
+      <button class="btn-secondary" onclick="peerJoin()" id="peer-join-btn">🔗 VERBINDEN</button>
+      <div class="status" id="peer-join-status"></div>
+
+      <div class="info-box">
+        <b>🌐 Online:</b> Spieler 1 erstellt einen Raum und bekommt eine Peer-ID. Spieler 2 gibt diese ID ein — funktioniert über verschiedene Geräte und Netzwerke.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- GAME -->
+<div id="screen-game" class="screen">
+  <div class="game-header">
+    <div class="pinfo">
+      <div class="pname" id="name-me">Du</div>
+      <div class="hpbg"><div class="hpfill" id="hp-me" style="width:100%;background:#2d9e5c"></div></div>
+      <div class="hpnum" id="hpn-me">100 / 100</div>
+    </div>
+    <div class="vs">VS</div>
+    <div class="pinfo" style="text-align:right">
+      <div class="pname" id="name-en">Gegner</div>
+      <div class="hpbg"><div class="hpfill" id="hp-en" style="width:100%;background:#e63946"></div></div>
+      <div class="hpnum" id="hpn-en">100 / 100</div>
+    </div>
+  </div>
+
+  <div class="round-label" id="round-lbl">RUNDE 1 — WÄHLE DEINE 3 AKTIONEN</div>
+  <div class="timerwrap"><div class="timerbar" id="tbar" style="width:100%"></div></div>
+
+  <div class="planner">
+    <div class="plabel">AKTIONSREIHENFOLGE</div>
+    <div class="slots" id="slots">
+      <div class="slot" id="sl0"><span class="snum">1</span>Leer</div>
+      <div class="slot" id="sl1"><span class="snum">2</span>Leer</div>
+      <div class="slot" id="sl2"><span class="snum">3</span>Leer</div>
+    </div>
+    <div class="plabel">AKTION WÄHLEN</div>
+    <div class="apicker" id="apicker"></div>
+    <button class="readybtn" id="readybtn" onclick="submitActions()" disabled>BEREIT ✓</button>
+  </div>
+
+  <div class="combat-log" id="clog">
+    <div class="le sys">Spiel gestartet — wähle deine 3 Aktionen!</div>
+  </div>
+</div>
+
+<!-- RESULT -->
+<div id="screen-result" class="screen">
+  <div class="rtitle" id="rtitle">SIEG</div>
+  <div class="rsub" id="rsub">Du hast gewonnen!</div>
+  <div style="display:flex;gap:0.75rem;justify-content:center;max-width:360px;width:100%">
+    <button class="btn-primary" onclick="location.reload()">🔄 NOCHMAL</button>
+  </div>
+</div>
+
+<!-- Overlays -->
+<div class="overlay" id="wait-ov">
+  <div class="spinner"></div>
+  <div id="wait-txt">WARTE AUF GEGNER...</div>
+</div>
+<div class="phase-overlay" id="phase-ov">
+  <div class="phase-text" id="phase-txt">KAMPF!</div>
+</div>
+
+<!-- PeerJS from jsdelivr (more reliable than unpkg) -->
+<script>
+// Load PeerJS dynamically so errors are catchable
+window.peerJsLoaded = false;
+window.peerJsError = false;
+</script>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.2/dist/peerjs.min.js"
+  onload="window.peerJsLoaded=true"
+  onerror="window.peerJsError=true"></script>
+
+<script>
+// ═══════════════════════════════════════════════
+// ACTIONS
+// ═══════════════════════════════════════════════
+const ACTS = {
+  attack:          { id:'attack',          name:'Angriff',         icon:'⚔️', desc:'20 Schaden',                       type:'basic',   cd:0 },
+  block:           { id:'block',           name:'Block',           icon:'🛡️', desc:'Blockt nächsten Angriff',          type:'basic',   cd:0 },
+  special_heavy:   { id:'special_heavy',   name:'Schwerer Schlag', icon:'💥', desc:'35 Schaden (blockbar)',             type:'special', cd:3 },
+  special_poison:  { id:'special_poison',  name:'Gift',            icon:'☠️', desc:'10 Sofort + 2 Runden Gift',        type:'special', cd:4 },
+  special_heal:    { id:'special_heal',    name:'Heilung',         icon:'💚', desc:'Heilt 25 HP',                      type:'special', cd:4 },
+  special_counter: { id:'special_counter', name:'Konter',          icon:'🔄', desc:'Wenn Gegner angreift: +15 zurück', type:'special', cd:3 },
+};
+
+// ═══════════════════════════════════════════════
+// GLOBAL STATE
+// ═══════════════════════════════════════════════
+let myName='', enemyName='', isHost=false, myRole='';
+let connectionMode = 'local'; // 'local' | 'online'
+
+let myHP=100, enHP=100, round=1;
+let myActions=[null,null,null], usedBasic={attack:false,block:false}, usedSpecial=false;
+let myCDs={}, enCDs={};
+let myPoison=0, enPoison=0;
+let myReady=false, enActions=null;
+let timerInt=null, timerLeft=120;
+let pollInt=null, gameOver=false;
+
+// ── Local mode ──
+let roomCode='';
+let bc=null;
+
+// ── Online/Peer mode ──
+let peer=null, peerConn=null;
+
+// ═══════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════
+function switchMode(mode) {
+  document.querySelectorAll('.mode-tab').forEach((t,i)=>{
+    t.classList.toggle('active', (i===0&&mode==='local')||(i===1&&mode==='online'));
+  });
+  document.getElementById('panel-local').classList.toggle('active', mode==='local');
+  document.getElementById('panel-online').classList.toggle('active', mode==='online');
+}
+
+function getName() {
+  const n = document.getElementById('inp-name').value.trim();
+  if (!n) { alert('Bitte gib deinen Namen ein!'); return null; }
+  return n;
+}
+
+// ═══════════════════════════════════════════════
+// LOCAL MODE (localStorage + BroadcastChannel)
+// ═══════════════════════════════════════════════
+const rk = (code,k) => `duel_${code}_${k}`;
+const lsSet = (c,k,v) => localStorage.setItem(rk(c,k), JSON.stringify(v));
+const lsGet = (c,k) => { try{return JSON.parse(localStorage.getItem(rk(c,k)));}catch(e){return null;} };
+const lsDel = (c,k) => localStorage.removeItem(rk(c,k));
+
+function genCode() {
+  return Array.from({length:5}, ()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*32)]).join('');
+}
+
+function localHost() {
+  const n = getName(); if (!n) return;
+  myName=n; isHost=true; myRole='host'; connectionMode='local';
+  roomCode = genCode();
+  ['host_present','msg_host_hello','msg_guest_hello','msg_host_hello_ack',
+   'msg_guest_hello_ack','msg_host_actions','msg_guest_actions'].forEach(k=>lsDel(roomCode,k));
+  lsSet(roomCode,'host_present',{name:myName,ts:Date.now()});
+  setupBC();
+  startLocalPoll();
+  document.getElementById('local-host-btn').disabled=true;
+  document.getElementById('local-host-section').style.display='block';
+  document.getElementById('local-code-box').textContent=roomCode;
+  document.getElementById('local-host-status').textContent='⏳ Warte auf Gegner...';
+}
+
+function localJoin() {
+  const n = getName(); if (!n) return;
+  const code = document.getElementById('local-inp-code').value.trim().toUpperCase();
+  if (!code) { alert('Code eingeben!'); return; }
+  const host = lsGet(code,'host_present');
+  if (!host) {
+    setStatus('local-join-status','❌ Raum nicht gefunden — beide Tabs im selben Browser?','err');
+    return;
+  }
+  myName=n; isHost=false; myRole='guest'; connectionMode='local'; roomCode=code;
+  enemyName=host.name;
+  setupBC();
+  startLocalPoll();
+  document.getElementById('local-join-btn2') && (document.getElementById('local-join-btn2').disabled=true);
+  setStatus('local-join-status','✅ Verbunden!','ok');
+  localSend({type:'hello',name:myName});
+  setTimeout(()=>{ if(enemyName) startGame(); },400);
+}
+
+function setupBC() {
+  try { bc=new BroadcastChannel('duel_'+roomCode); bc.onmessage=e=>handleMsg(e.data); }
+  catch(e){ bc=null; }
+}
+
+function localSend(msg) {
+  msg.from=myRole; msg.ts=Date.now();
+  lsSet(roomCode,'msg_'+myRole+'_'+msg.type,msg);
+  if(bc) bc.postMessage(msg);
+}
+
+function startLocalPoll() {
+  pollInt=setInterval(()=>{
+    if(gameOver) return;
+    const other=isHost?'guest':'host';
+    if(!enemyName){
+      const m=lsGet(roomCode,'msg_'+other+'_hello'); if(m) handleMsg(m);
+      const m2=lsGet(roomCode,'msg_'+other+'_hello_ack'); if(m2) handleMsg(m2);
+    }
+    if(myReady&&!enActions){
+      const m=lsGet(roomCode,'msg_'+other+'_actions');
+      if(m&&m.round===round) handleMsg(m);
+    }
+  },400);
+}
+
+function copyLocalCode() {
+  navigator.clipboard.writeText(roomCode).catch(()=>{});
+  const el=document.getElementById('local-code-box');
+  el.textContent=roomCode+' ✓'; setTimeout(()=>el.textContent=roomCode,1500);
+}
+
+// ═══════════════════════════════════════════════
+// ONLINE MODE (PeerJS)
+// ═══════════════════════════════════════════════
+function peerHost() {
+  const n = getName(); if (!n) return;
+  if (window.peerJsError || !window.Peer) {
+    setStatus('peer-host-status','❌ PeerJS konnte nicht geladen werden. Internetverbindung prüfen.','err');
+    return;
+  }
+  myName=n; isHost=true; myRole='host'; connectionMode='online';
+  document.getElementById('peer-host-btn').disabled=true;
+  document.getElementById('peer-host-section').style.display='block';
+  setStatus('peer-host-status','⏳ Verbinde mit Netzwerk...','info');
+
+  // Use multiple STUN servers for reliability
+  peer = new Peer(undefined, {
+    host: 'peerjs-server-wp4r.onrender.com',
+    port: 443,
+    path: '/',
+    secure: true,
+    config: {
+      iceServers: [
+        {urls:'stun:stun.l.google.com:19302'},
+        {urls:'stun:stun1.l.google.com:19302'},
+        {urls:'stun:stun.cloudflare.com:3478'}
+      ]
+    }
+  });
+
+  peer.on('open', id => {
+    document.getElementById('peer-id-box').textContent = id;
+    setStatus('peer-host-status','✅ Bereit — teile deine ID mit dem Gegner!','ok');
+  });
+
+  peer.on('connection', conn => {
+    peerConn = conn;
+    setupPeerConn();
+    setStatus('peer-host-status','🔗 Gegner verbindet...','info');
+  });
+
+  peer.on('error', e => {
+    setStatus('peer-host-status','❌ Fehler: '+e.type+'. Seite neu laden und nochmal versuchen.','err');
+    document.getElementById('peer-host-btn').disabled=false;
+  });
+}
+
+function peerJoin() {
+  const n = getName(); if (!n) return;
+  const targetId = document.getElementById('peer-inp-id').value.trim();
+  if (!targetId) { alert('Bitte Peer-ID eingeben!'); return; }
+  if (window.peerJsError || !window.Peer) {
+    setStatus('peer-join-status','❌ PeerJS konnte nicht geladen werden.','err');
+    return;
+  }
+  myName=n; isHost=false; myRole='guest'; connectionMode='online';
+  document.getElementById('peer-join-btn').disabled=true;
+  setStatus('peer-join-status','⏳ Verbinde...','info');
+
+  peer = new Peer(undefined, {
+    host: 'peerjs-server-wp4r.onrender.com',
+    port: 443,
+    path: '/',
+    secure: true,
+    config: {
+      iceServers: [
+        {urls:'stun:stun.l.google.com:19302'},
+        {urls:'stun:stun1.l.google.com:19302'},
+        {urls:'stun:stun.cloudflare.com:3478'}
+      ]
+    }
+  });
+
+  peer.on('open', () => {
+    peerConn = peer.connect(targetId, {reliable:true, serialization:'json'});
+    peerConn.on('open', () => {
+      setStatus('peer-join-status','✅ Verbunden!','ok');
+      setupPeerConn();
+      peerSend({type:'hello', name:myName});
+    });
+    peerConn.on('error', e => {
+      setStatus('peer-join-status','❌ Verbindung fehlgeschlagen: '+e,'err');
+      document.getElementById('peer-join-btn').disabled=false;
+    });
+  });
+
+  peer.on('error', e => {
+    setStatus('peer-join-status','❌ Fehler: '+e.type,'err');
+    document.getElementById('peer-join-btn').disabled=false;
+  });
+}
+
+function setupPeerConn() {
+  peerConn.on('data', data => handleMsg(data));
+  peerConn.on('close', () => { if(!gameOver) addLog('Verbindung getrennt.','sys'); });
+  peerConn.on('error', e => addLog('Verbindungsfehler: '+e,'sys'));
+}
+
+function peerSend(msg) {
+  if (peerConn && peerConn.open) peerConn.send(msg);
+}
+
+function copyPeerId() {
+  const id = document.getElementById('peer-id-box').textContent;
+  navigator.clipboard.writeText(id).catch(()=>{});
+  const el=document.getElementById('peer-id-box');
+  const orig=el.textContent; el.textContent='KOPIERT ✓';
+  setTimeout(()=>el.textContent=orig,1500);
+}
+
+// ═══════════════════════════════════════════════
+// UNIFIED MESSAGE HANDLER
+// ═══════════════════════════════════════════════
+function handleMsg(msg) {
+  if (!msg) return;
+
+  if (msg.type==='hello' && isHost && !enemyName) {
+    enemyName=msg.name;
+    document.getElementById('name-en').textContent=enemyName;
+    if(connectionMode==='local'){
+      document.getElementById('local-host-status').textContent='✅ '+enemyName+' beigetreten!';
+      localSend({type:'hello_ack',name:myName});
+    } else {
+      setStatus('peer-host-status','✅ '+enemyName+' verbunden!','ok');
+      peerSend({type:'hello_ack',name:myName});
+    }
+    startGame();
+    return;
+  }
+
+  if (msg.type==='hello_ack' && !isHost && !enemyName) {
+    enemyName=msg.name;
+    document.getElementById('name-en').textContent=enemyName;
+    startGame();
+    return;
+  }
+
+  if (msg.type==='actions' && msg.round===round && !enActions) {
+    enActions=msg.actions;
+    enCDs=msg.cds||{};
+    if(myReady) resolveRound();
+    return;
+  }
+}
+
+// ═══════════════════════════════════════════════
+// UNIFIED SEND
+// ═══════════════════════════════════════════════
+function sendMsg(msg) {
+  if (connectionMode==='local') localSend(msg);
+  else peerSend(msg);
+}
+
+// ═══════════════════════════════════════════════
+// GAME LOGIC
+// ═══════════════════════════════════════════════
+function startGame() {
+  clearInterval(pollInt); // stop lobby polling; game has its own poll
+  if(connectionMode==='local') { pollInt=setInterval(gamePoll,400); }
+  document.getElementById('screen-setup').classList.remove('active');
+  document.getElementById('screen-game').classList.add('active');
+  document.getElementById('name-me').textContent=myName;
+  if(enemyName) document.getElementById('name-en').textContent=enemyName;
+  hideOv();
+  resetRound();
+}
+
+function gamePoll() {
+  if(gameOver||!myReady||enActions) return;
+  const other=isHost?'guest':'host';
+  const m=lsGet(roomCode,'msg_'+other+'_actions');
+  if(m&&m.round===round) handleMsg(m);
+}
+
+function resetRound() {
+  myActions=[null,null,null];
+  usedBasic={attack:false,block:false};
+  usedSpecial=false; myReady=false; enActions=null;
+  if(connectionMode==='local'){
+    lsDel(roomCode,'msg_'+myRole+'_actions');
+  }
+  for(const id in myCDs){ myCDs[id]--; if(myCDs[id]<=0) delete myCDs[id]; }
+  renderSlots(); renderPicker();
+  document.getElementById('readybtn').disabled=true;
+  document.getElementById('readybtn').textContent='BEREIT ✓';
+  document.getElementById('round-lbl').textContent=`RUNDE ${round} — WÄHLE DEINE 3 AKTIONEN`;
+  updateHP();
+  startTimer();
+}
+
+function startTimer() {
+  clearInterval(timerInt); timerLeft=120;
+  const bar=document.getElementById('tbar');
+  bar.style.width='100%'; bar.style.background='var(--accent2)';
+  timerInt=setInterval(()=>{
+    timerLeft--;
+    bar.style.width=(timerLeft/120*100)+'%';
+    if(timerLeft<=20) bar.style.background='var(--accent)';
+    if(timerLeft<=0){ clearInterval(timerInt); autoSubmit(); }
+  },1000);
+}
+
+function autoSubmit() {
+  for(let i=0;i<3;i++){
+    if(!myActions[i]){
+      if(!usedBasic.attack){ myActions[i]='attack'; usedBasic.attack=true; }
+      else if(!usedBasic.block){ myActions[i]='block'; usedBasic.block=true; }
+      else myActions[i]='attack';
+    }
+  }
+  renderSlots(); submitActions();
+}
+
+function renderSlots() {
+  for(let i=0;i<3;i++){
+    const sl=document.getElementById('sl'+i);
+    const a=myActions[i]?ACTS[myActions[i]]:null;
+    if(a){
+      sl.classList.add('filled');
+      sl.innerHTML=`<span class="snum">${i+1}</span><span class="sicon">${a.icon}</span><span class="sname">${a.name}</span>${!myReady?`<button class="sremove" onclick="removeAct(${i})">✕</button>`:''}`;
+    } else {
+      sl.classList.remove('filled');
+      sl.innerHTML=`<span class="snum">${i+1}</span><span style="font-size:.75rem">Leer</span>`;
+    }
+  }
+  document.getElementById('readybtn').disabled=myActions.filter(Boolean).length<3||myReady;
+}
+
+function renderPicker() {
+  const p=document.getElementById('apicker'); p.innerHTML='';
+  for(const id of ['attack','block','special_heavy','special_poison','special_heal','special_counter']){
+    const a=ACTS[id]; const cd=myCDs[id]||0;
+    let dis=myReady;
+    if(a.type==='basic'&&usedBasic[id]) dis=true;
+    if(a.type==='special'&&(usedSpecial||cd>0)) dis=true;
+    const btn=document.createElement('button');
+    btn.className='abtn'; btn.disabled=dis;
+    btn.innerHTML=`<span class="ai">${a.icon}</span><span><div class="atitle">${a.name}</div><div class="adesc">${a.desc}</div></span>${cd>0?`<span class="cdbadge">CD ${cd}</span>`:''}`;
+    btn.onclick=()=>addAct(id);
+    p.appendChild(btn);
+  }
+}
+
+function addAct(id) {
+  const slot=myActions.indexOf(null); if(slot===-1) return;
+  myActions[slot]=id;
+  const a=ACTS[id];
+  if(a.type==='basic') usedBasic[id]=true; else usedSpecial=true;
+  renderSlots(); renderPicker();
+}
+
+function removeAct(i) {
+  myActions[i]=null;
+  usedBasic={attack:false,block:false}; usedSpecial=false;
+  myActions.forEach(aid=>{ if(!aid) return; const a=ACTS[aid]; if(a.type==='basic') usedBasic[aid]=true; else usedSpecial=true; });
+  renderSlots(); renderPicker();
+}
+
+function submitActions() {
+  if(myReady) return;
+  clearInterval(timerInt);
+  myReady=true;
+  document.getElementById('readybtn').disabled=true;
+  document.getElementById('readybtn').textContent='✅ BEREIT — WARTE AUF GEGNER';
+  sendMsg({type:'actions', round, actions:myActions, cds:myCDs});
+  if(enActions) resolveRound(); else showOv('WARTE AUF GEGNER...');
+}
+
+function resolveRound() {
+  hideOv(); clearInterval(timerInt);
+  showPhase(`RUNDE ${round}!`, ()=>runStep(0));
+}
+
+function runStep(i) {
+  if(i>=3){ afterRound(); return; }
+  applyAct(ACTS[myActions[i]], ACTS[enActions[i]], true);
+  applyAct(ACTS[enActions[i]], ACTS[myActions[i]], false);
+  updateHP();
+  if(myHP<=0||enHP<=0){ setTimeout(endGame,700); return; }
+  setTimeout(()=>runStep(i+1),900);
+}
+
+function applyAct(act, oppAct, iAmMe) {
+  const theyBlock=oppAct.id==='block';
+  const n=iAmMe?myName:enemyName;
+  if(act.id==='attack'){
+    if(theyBlock){ addLog(`${n} greift an — geblockt!`,'blk'); }
+    else { dmg(20,iAmMe); addLog(`${n} greift an — 20 Schaden!`,'dmg'); }
+  } else if(act.id==='block'){
+    addLog(`${n} blockt.`,'blk');
+  } else if(act.id==='special_heavy'){
+    setCd(act.id,iAmMe);
+    if(theyBlock){ addLog(`${n}: Schwerer Schlag — geblockt!`,'blk'); }
+    else { dmg(35,iAmMe); addLog(`${n}: Schwerer Schlag — 35 Schaden!`,'dmg'); }
+  } else if(act.id==='special_poison'){
+    setCd(act.id,iAmMe);
+    if(theyBlock){ addLog(`${n}: Gift — geblockt!`,'blk'); }
+    else { dmg(10,iAmMe); if(iAmMe) enPoison=2; else myPoison=2; addLog(`${n}: Gift — 10 Sofort + vergiftet!`,'spc'); }
+  } else if(act.id==='special_heal'){
+    setCd(act.id,iAmMe); heal(25,iAmMe);
+    addLog(`${n}: Heilung — +25 HP!`,'spc');
+  } else if(act.id==='special_counter'){
+    setCd(act.id,iAmMe);
+    if(oppAct.id==='attack'||oppAct.id==='special_heavy'){ dmg(15,!iAmMe); addLog(`${n}: KONTER — 15 Gegenschaden!`,'spc'); }
+    else { addLog(`${n}: Konter — kein Angriff zum Kontern.`); }
+  }
+}
+
+function setCd(id,iAmMe){ if(iAmMe) myCDs[id]=ACTS[id].cd; else enCDs[id]=ACTS[id].cd; }
+function dmg(v,attackerIsMe){ if(attackerIsMe) enHP=Math.max(0,enHP-v); else myHP=Math.max(0,myHP-v); }
+function heal(v,healerIsMe){ if(healerIsMe) myHP=Math.min(100,myHP+v); else enHP=Math.min(100,enHP+v); }
+
+function afterRound() {
+  if(myPoison>0){ myHP=Math.max(0,myHP-10); myPoison--; addLog(`${myName}: 10 Giftschaden (${myPoison} Runden verbleibend)!`,'dmg'); }
+  if(enPoison>0){ enHP=Math.max(0,enHP-10); enPoison--; addLog(`${enemyName}: 10 Giftschaden (${enPoison} Runden verbleibend)!`,'dmg'); }
+  updateHP();
+  if(myHP<=0||enHP<=0){ setTimeout(endGame,500); return; }
+  round++;
+  setTimeout(()=>showPhase(`RUNDE ${round}`,()=>resetRound()),400);
+}
+
+function updateHP() {
+  const c=hp=>hp>50?'#2d9e5c':hp>25?'#e0a020':'#e63946';
+  document.getElementById('hp-me').style.cssText=`width:${myHP}%;background:${c(myHP)}`;
+  document.getElementById('hp-en').style.cssText=`width:${enHP}%;background:${c(enHP)}`;
+  document.getElementById('hpn-me').textContent=myHP+' / 100';
+  document.getElementById('hpn-en').textContent=enHP+' / 100';
+}
+
+function addLog(txt,cls=''){
+  const el=document.createElement('div'); el.className='le '+(cls||''); el.textContent=txt;
+  const l=document.getElementById('clog'); l.appendChild(el); l.scrollTop=l.scrollHeight;
+}
+
+function endGame(){
+  gameOver=true; clearInterval(pollInt); clearInterval(timerInt);
+  if(peer) { try{peer.destroy();}catch(e){} }
+  document.getElementById('screen-game').classList.remove('active');
+  document.getElementById('screen-result').classList.add('active');
+  const t=document.getElementById('rtitle'), s=document.getElementById('rsub');
+  if(myHP<=0&&enHP<=0){ t.textContent='UNENTSCHIEDEN'; t.className='rtitle'; s.textContent='Beide sind gefallen!'; }
+  else if(myHP<=0){ t.textContent='NIEDERLAGE'; t.className='rtitle lose'; s.textContent=`${enemyName} hat dich besiegt!`; }
+  else { t.textContent='SIEG!'; t.className='rtitle win'; s.textContent=`Du hast ${enemyName} besiegt!`; }
+}
+
+function setStatus(id,txt,cls){ const el=document.getElementById(id); el.textContent=txt; el.className='status '+(cls||''); }
+function showOv(txt){ document.getElementById('wait-txt').textContent=txt; document.getElementById('wait-ov').classList.add('active'); }
+function hideOv(){ document.getElementById('wait-ov').classList.remove('active'); }
+function showPhase(txt,cb){
+  const ol=document.getElementById('phase-ov');
+  document.getElementById('phase-txt').textContent=txt;
+  ol.classList.add('active');
+  setTimeout(()=>{ ol.classList.remove('active'); cb&&cb(); },1100);
+}
+</script>
+</body>
+</html>
